@@ -1,0 +1,733 @@
+
+
+section .data
+  msg db 'ERROR_x86assembly (name of program: wqudg4)', 0
+  len equ $ - msg
+
+  msg2 db 'memory cell pointer cannot be negative', 0
+  len2 equ $ - msg2
+
+  msg3 db 'unmatched bracket', 0
+  len3 equ $ - msg3
+
+section .bss
+    buf resb 20000
+    buf2 resb 1000
+    buf3 resb 1000
+    buf4 resb 1000
+    buf5 resb 5000
+    buf6 resb 5000
+    buf7 resb 5000
+    buf8 resb 5000
+    buf10 resb 1000
+    buf11 resb 20000
+    
+    buf12 resq 2
+    ;memory cells
+   
+
+section .text
+global _start
+
+_start:
+   
+
+    mov rax, 0
+    mov rdi, 0
+    mov rsi, buf    ;start output
+    mov rdx, 20000
+    syscall
+   
+   
+_start01:
+    xor al, al
+    mov al, 1
+    
+    xor rdi, rdi
+    jmp _start02
+   
+_start02:
+    cmp byte [buf+rdi], 0
+    ja _start03
+    je _start04
+   
+   
+_start03:
+    mov al, 3
+    inc rdi
+    jmp _start02
+   
+_start04:
+    dec al
+    ;cmp al, 1
+    ;je _start06
+   ; cmp rdi, 0
+    ;je _start06
+    mov byte [buf11], 0
+    mov rdi, rdi
+    jmp _start05
+   
+_start05:
+    inc byte [buf11]
+    dec rdi
+    cmp rdi, 0
+    je _start1
+    ja _start05
+
+
+_start1:
+   
+    movzx rdi, byte [buf11]
+    cmp rdi, 0
+    je _exit5
+
+    add byte [buf11], '0' ; length of code
+    sub rsp, 20000; memory cells
+   ; xor rsp, rsp
+    xor rbp, rbp ; pointer for memory cells
+  
+    xor r8, r8 ; pointer for code (input)
+    xor r9, r9 ; multi-purpose register
+    mov r10, 0
+    mov r11, 0
+    mov r12, 0
+    mov r15, 0 ; ] ;do not use r0, r5, r6, and r16
+    xor rdx, rdx ;pointer for '[' buffer
+    mov rdx, 0
+    xor al, al
+    xor dl, dl
+    xor rax, rax
+    xor rcx, rcx
+    inc rdi  ; inc rdi to prevent inaccurate size of code
+   ; mov ds, 0
+   
+   
+   
+   
+   
+
+_e_:
+   xor rcx, rcx ; resets rcx after scanning for ']' and '['
+   xor al, al
+   cmp byte [buf+r8], '[' ; push '[' in buf5, knows the 
+   ; positon of '['
+   je _e1_
+   cmp byte [buf+r8], ']' ; pop '[', transfer the byte to buf6 from buf5
+   je _ee2_
+   
+   xor rax, rax
+   mov rax, r8
+   cmp rax, 20000 ; if r8 == 20000, exits the scanning
+   je _e0_
+   inc r8
+   jmp _e_
+   
+_e1_:
+   add [buf5+rdx], r8b ; transfer r8 to buf5 if [buf5+rdx] == '['
+   inc r8     
+   inc rdx  ;pointer for buf5
+   jmp _e_
+   
+;_start06:
+   ;add byte [buf+0], '.'
+ ; jmp _start01
+   
+_ee2_:   ; check for unmatched bracket, if no. of [ > no. of ]
+  cmp rdx, 0
+  je _ef2_
+  ja _e2_
+ 
+_ef2_:
+  jmp _exit6 ; prints error message 
+   
+_e2_: ; if '[' and ']' match
+ 
+ 
+  dec rdx
+  mov r9, rdx
+  cmp r9, 0
+  jb _exit4    ; if no. of ] > no. of [
+  mov rdx, r9
+  mov r9, 0
+  mov rdx, rdx
+  ;sub byte [buf5+rdx], '0'
+  xor al, al
+  mov al, [buf5+rdx]   ;load byte (position of [) to al
+  mov byte [buf6+r15], al ; load al into [buf6+r15]
+  ;add [buf5+rdx], al
+  xor al, al
+  xor rcx, rcx
+  mov rcx, r8
+  add [buf7+r15], cl
+
+  mov r8b, 0
+  inc r15
+  cmp r15, 5000  
+  je _exit6
+  mov r8, rcx
+  xor rcx, rcx
+  mov al, [buf5+rdx]
+  sub byte [buf5+rdx], al ; clears byte [buf5+rdx]
+  xor rcx, rcx
+  xor al, al
+ 
+  inc r8
+ 
+  jmp _e_
+ 
+
+ 
+ 
+_e0_:
+; jmp _exit3
+  cmp rdx, 0  ;just double checking 
+  jb _exit4
+   
+  dec r15      ; prevent segmentation fault
+ ; mov r15, 0
+  xor rdx, rdx
+  xor rax, rax
+  xor dl, dl
+  xor al, al
+  dec r8
+  ;mov r8, 0
+  mov r9, 0
+  mov r12, 0
+  jmp _e1000n
+ 
+_e1000n:  ; if no. of [ > no. of ]
+  mov r15, 0
+  cmp byte [buf5+r15], 0
+  je _e10n
+  jne _e100n
+ 
+_e10n:
+  mov r8, 0
+  mov r12, 0
+  mov r9, 0
+  mov r15, 0
+  mov byte [buf10], 0
+  mov qword [buf12], 0
+
+  jmp _e1
+ 
+_e100n:
+  jmp _exit5
+ 
+ 
+_e200n:
+  jmp _exit3
+ 
+
+_e1:
+    ;jmp _exit3
+    mov r9, 0
+    mov r10, 0
+    mov r15, 0
+    
+   
+   ; cmp r8, rdi
+   ; je _exit5
+
+    mov r9, 0
+    mov r10, 0
+    ;cmp rdi, 300
+    ;je _exit3
+   ; ja _exit3
+   
+  ; mov qword [buf12], 0
+   inc qword [buf12]   ; no. of steps
+   mov r9, 0
+   mov r9, [buf12]
+   mov r9, r9
+   mov [buf12], r9
+   cmp qword [buf12], 20000
+   jae _exit3
+
+    cmp byte [buf+r8], '+'
+    je _e2
+
+    cmp byte [buf+r8], '-'
+    je _e3
+
+    cmp byte [buf+r8], '>'
+    je _e4
+
+    cmp byte [buf+r8], '<'
+    je _e5
+
+    cmp byte [buf+r8], '['
+    je _e6
+
+    cmp byte [buf+r8], ']'
+    je _e7
+
+    cmp byte [buf+r8], '.'
+    je _e9
+   
+   
+    cmp r8, rdi
+    je _e9
+
+    inc r8  ;move to next character
+    jmp _e1
+
+
+_e2:
+    ; inc byte [buf12]
+   ; cmp byte [buf12], 200000
+   ; je _exit4
+    cmp byte [rsp+rbp], 255 ;if memory cell == 255, even though x86 asm knows if byte [rsp+rbp] is 255.
+    jae _e2e_
+   
+    inc byte [rsp+rbp]  ; add byte [rsp+rbp]
+    inc r8
+    jmp _e1
+    
+_e2e_:
+    sub byte [rsp+rbp], 255
+    mov byte [rsp+rbp], 0
+    inc r8
+    jmp _e1
+
+_e3:
+  ; inc byte [buf12]
+ ; cmp byte [buf12], 200000
+ ; je _exit4
+    cmp byte [rsp+rbp], 0 ; if memory_cell[rbp] == 0
+    je _e3e_
+
+    dec byte [rsp+rbp] ;subtract byte [rsp+rsp] by 1
+    inc r8
+    jmp _e1
+
+
+_e3e_:
+    inc r8
+    sub byte [rsp+rbp], 0
+    mov r9, 0
+    movzx r9, byte [rsp+rbp] 
+    mov r9, r9
+    mov [rsp+rbp], r9
+    mov byte [rsp+rbp], 255
+    jmp _e1
+
+
+_e4:
+    mov r9, 0 
+    inc r8
+    cmp rbp, 20001
+    je _exit3
+    inc rbp ; move pointer to the right by 1 if '>'
+    cmp rbp, 20001
+    je _exit3
+    jmp _e1
+
+
+_e5:
+    mov r9, 0
+    cmp rbp, 0 
+    je _e5e
+
+    dec rbp ; move pointer to the left if '<'
+    inc r8
+    jmp _e1
+
+
+_e5e:
+    jmp _exit5 ; if underflow (-rbp)
+
+
+_e6:
+    xor dl, dl
+    cmp byte [rsp+rbp], 0 ; if memory_cell[rbp] == 0
+    je _e6e 
+    ja _e61e_
+
+
+_e61e_:
+    mov r10, 0 
+    inc r8   ;move to next character 
+    jmp _e1
+
+
+_e6e:
+    ;xor dl, dl
+    mov r10, 0
+
+    ;movzx r10, byte [buf6+r9]
+    ;mov r10, r10
+ 
+     ; mov [buf6+r9], r10
+   
+    movzx r10, byte [buf6+r9]
+    ;sub r10, '0'
+    mov r10, r10
+    mov dl, byte [buf+r10]
+    jmp _e820e
+ 
+ 
+
+_e820e:
+    ;mov r10, 0
+    mov r10, 0
+    movzx r10, byte [buf6+r15] ; load byte [buf6+r15] into r10
+    ;sub r10, '0'
+   
+    cmp r10, r8
+    je _e830e
+    jne _e840e
+
+_e830e:
+    ;add byte [buf6+r15], '0'
+    ;jmp _e73e
+    ;mov r10, 0
+    xor rax, rax
+    xor dl, dl
+    xor rdi, rdi
+    ;add byte [buf6+r9], '0'
+   
+    xor al, al
+    
+ 
+   ; mov r10, 0
+   
+   ; xor al, al
+   ; movzx r10, byte [buf6+r9]
+    ;sub r10,
+   
+   
+    mov r9, r15
+    jmp _e61e
+   
+ 
+ 
+ 
+   
+_e840e:
+    ;add byte [buf6+r15], '0'
+    inc r15
+    cmp r15, 5001
+    je _exit4
+   ; jmp _exit5 
+    ;mov r10, 0
+    xor rax, rax
+    xor dl, dl
+   ; xor rdi, rdi
+    ;add byte [buf6+r9], '0'
+   
+    xor al, al
+ 
+   ; mov r10, 0
+
+    jmp _e820e
+   
+
+
+
+
+   
+
+
+_e61e:
+    ;add byte [buf6+r9], 100
+    mov r10, 0
+    xor rax, rax
+    xor rdx, rdx
+    xor dl, dl
+    mov r10, 0
+    mov r9, r9
+    ;add byte [buf6+r9], '0'
+    xor al, al
+
+    movzx r10, byte [buf7+r9]
+
+    mov r10, r10
+
+   
+    mov r8, r10
+    mov r8, r8
+
+
+    xor al, al
+    xor dl, dl
+    xor rax, rax
+    xor rdx, rdx
+    mov r9, 0
+    mov r10, 0
+
+    jmp _e1
+
+
+_e7:
+
+   
+    cmp byte [rsp+rbp], 0
+    je _e7e
+    jne _e71e
+
+
+_e7e:
+    inc r8
+    cmp r8, 20001
+    je _exit3
+    jmp _e1
+_e71e:
+    mov r10, 0
+    mov r12, 0
+    xor rax, rax
+    xor al, al
+    xor dl, dl
+    xor rbx, rbx
+    mov r9, r9
+    mov r8, r8
+    ;sub byte [buf7+r9], '0'
+    movzx r12, byte [buf7+r9]
+    ;sub r12, '0'
+    mov r12, r12
+    movzx rbx, byte [buf+r12]
+    movzx rax, byte [buf+r8]
+    jmp _e720e
+
+_e720e:
+    mov r12, 0
+    movzx r12, byte [buf7+r15]
+    ;sub r12, '0'
+ 
+    cmp r12, r8
+    je _e730e
+    jne _e740e
+
+_e730e:
+
+    mov r12, 0
+    mov r9, r15
+    jmp _e73e
+   
+ 
+ 
+ 
+   
+_e740e:
+    cmp r15, 20000
+    je _exit5
+    ;add byte [buf7+r15], '0'
+    inc r15
+    cmp r15, 20000
+    je _exit5
+    jmp _e720e
+
+
+_e73e:
+    ;add byte [buf7+r9], 100
+    xor rax, rax
+    xor rbx, rbx
+    mov r15, 0
+    xor al, al
+    mov r12, 0
+
+    movzx r12, byte [buf6+r9]
+
+    mov r12, r12
+
+   
+    mov r8, r12
+    ;add byte [buf6+r9], '0'
+
+    xor al, al
+    mov r12, 0
+
+    ;inc rdi
+    jmp _e1
+
+_e9:
+  mov r10, r10
+  cmp byte [buf10+r10], 0
+  je _e90
+  jne _e900
+ 
+_e90:
+  cmp r8, rdi
+  je _exit2
+  xor al, al
+  add al, [rsp+rbp]
+  mov byte [buf10+r10], al
+  xor al, al
+  inc r8
+  cmp r8, 20001
+  je _exit5
+  cmp r8, rdi
+  je _exit2
+  jmp _e1
+ ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¥ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¥ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÆ’Ã‚Â°Ãƒâ€¦Ã‚Â¸Ãƒâ€šÃ‚Â¥ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬
+
+_e9000e:
+ ; mov rdi, rdi
+  mov r9, rdi
+  cmp rdi, 10
+  je _e9000
+  jb _e90000
+  ja _e9000
+ 
+ 
+ 
+ 
+ 
+ 
+_e900:
+  inc r10
+  jmp _e9
+ 
+_e9000:
+  inc r10
+  inc r10
+  add byte [buf10+r10-1], ' '
+  jmp _e9001
+ 
+_e9001:
+  sub r9, 10
+  inc byte [buf10+r10]
+  cmp r9, 10
+  je _e9001
+  ja _e9001
+  jb _e8000
+ 
+
+
+ 
+_e8000:
+  add byte [buf10+r10], '0'
+  cmp r9, 0
+  je _e1000000
+  inc r10
+  jmp _e8001
+ 
+_e1000000:
+  add byte [buf10+r10+1], '0'
+ ; dec byte [buf10+r10+1]
+  jmp _exit2
+_e8001:
+  dec r9
+  inc byte [buf10+r10]
+  cmp r9, 0
+  je _e8002
+  ja _e8001
+ 
+_e8002:
+  add byte [buf10+r10], '0'
+ ; dec byte [buf10+r10]
+  jmp _exit2
+ 
+_e90000:
+  inc r10
+  inc r10
+  inc r10
+  add byte [buf10+r10-2], ' '
+  jmp _e90001
+ 
+_e90001:
+  cmp r9, 0
+  je _exit2
+  dec r9
+  inc byte [buf10+r10]
+  inc byte [buf10+r10-1]
+  cmp r9, 0
+  je _e90002
+  ja _e90001
+ 
+_e90002:
+  add byte [buf10+r10], '0'
+  mov byte [buf10+r10-1], '-'
+  jmp _exit2
+ 
+   
+
+_exit2:
+; add byte [buf10+r10-1], '0'
+; add byte [buf10+r10], '0'
+;sub [buf10+ds], 8
+  ;cmp r10, 600
+  ;je _exit3
+ ; ja _exit3
+ ; sub byte [buf10+r10], 1
+
+
+ 
+  xor rax, rax
+  xor rdi, rdi
+  xor rdx, rdx
+  ;add byte[buf6+2], '0'
+  ;xor rbp, rbp
+  mov rsi, buf10
+ 
+  mov rdx, 600
+  mov rax, 1
+  mov rdi, 1
+  syscall
+ 
+
+ 
+ 
+  add rsp, 20000
+  mov rax, 60
+  xor rdi, rdi
+  syscall
+ 
+_exit3:
+  ;add byte [buf6], '0'
+ ; add byte [buf6+1], '0'
+  ;add byte [buf6+2], '0'
+  xor rax, rax
+  mov rsi, buf6
+  mov rdx, 100;len2
+  mov rax, 1
+  mov rdi, 1
+  syscall
+ 
+  add rsp, 4000
+  mov rax, 60
+  xor rdi, rdi
+  syscall
+ 
+_exit4:
+  xor rax, rax
+  mov rsi, msg2
+  mov rdx, len2
+  mov rax, 1
+  mov rdi, 1
+  syscall
+ 
+  add rsp, 16
+  mov rax, 60
+  xor rdi, rdi
+  syscall
+ 
+_exit5:
+  xor rbp, rbp
+  xor rax, rax
+  xor rdx, rdx
+  mov rsi, msg
+  mov rdx, len
+  mov rax, 1
+  mov rdi, 1
+  syscall
+ 
+  add rsp, 32
+  mov rax, 60
+  xor rdi, rdi
+  syscall
+ 
+_exit6:
+  xor rbp, rbp
+  xor rax, rax
+  xor rdx, rdx
+  mov rsi, msg2
+  mov rdx, len2
+  mov rax, 1
+  mov rdi, 1
+  syscall
+ 
+  add rsp, 16
+  mov rax, 60
+  xor rdi, rdi
+  syscall

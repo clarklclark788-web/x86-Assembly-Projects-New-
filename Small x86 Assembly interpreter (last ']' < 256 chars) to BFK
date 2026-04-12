@@ -9,7 +9,6 @@ section .data
 
   msg3 db 'unmatched bracket', 0
   len3 equ $ - msg3
-  
 
 section .bss
     buf resb 20000
@@ -22,48 +21,36 @@ section .bss
     buf8 resb 5000
     buf10 resb 1000
     buf11 resb 20000
-    
     buf12 resq 2
-    ;memory cells
-   
-
+    
 section .text
 global _start
-
 _start:
-   
-
     mov rax, 0
     mov rdi, 0
     mov rsi, buf    ;start input
     mov rdx, 20000
     syscall
-   
-   
 _start01:
     xor al, al
     mov al, 1
-    
     xor rdi, rdi
     jmp _start02
-   
 _start02:
     cmp byte [buf+rdi], 0
     ja _start03
     je _start04
-   
-   
 _start03:
     mov al, 3
     inc rdi
     jmp _start02
-   
+
 _start04:
     dec al
     mov byte [buf11], 0
     mov rdi, rdi
     jmp _start05
-   
+
 _start05:
     inc byte [buf11]
     dec rdi
@@ -71,9 +58,8 @@ _start05:
     je _start1
     ja _start05
 
-
 _start1:
-   
+
     movzx rdi, byte [buf11]
     cmp rdi, 0
     je _exit5
@@ -81,12 +67,11 @@ _start1:
     add byte [buf11], '0' ; length of code
     sub rsp, 20000; memory cells
     xor rbp, rbp ; pointer for memory cells
-  
     xor r8, r8 ; pointer for code (input)
     xor r9, r9 ; multi-purpose register
     xor r10, r10 ; multi-purpose register
     xor r11, r11 ; multi-purpose register 
-    xor r12, r12
+    xor r12, r12 ; multi-purpose register
     xor r15, r15 ; ] ;do not use r0, r5, r6, and r16
     xor rdx, rdx ;pointer for '[' buffer
     xor al, al
@@ -94,12 +79,6 @@ _start1:
     xor rax, rax
     xor rcx, rcx
     inc rdi  ; inc rdi to prevent inaccurate size of code
-
-   
-   
-   
-   
-   
 
 _e_:
    xor rcx, rcx ; resets rcx after scanning for ']' and '['
@@ -109,33 +88,32 @@ _e_:
    je _e1_
    cmp byte [buf+r8], ']' ; pop '[', transfer the byte to buf6 from buf5
    je _ee2_
-   
+
    xor rax, rax
    mov rax, r8
    cmp rax, 20000 ; if r8 == 20000, exits the scanning
    je _e0_
    inc r8
    jmp _e_
-   
+
 _e1_:
    add [buf5+rdx], r8b ; transfer r8 to buf5 if [buf5+rdx] == '['
    inc r8     
    inc rdx  ;pointer for buf5
    jmp _e_
-   
 
-   
+
+
 _ee2_:   ; check for unmatched bracket, if no. of [ > no. of ]
   cmp rdx, 0
   je _ef2_
   ja _e2_
- 
+
 _ef2_:
   jmp _exit6 ; prints error message 
-   
+
 _e2_: ; if '[' and ']' match
- 
- 
+
   dec rdx
   mov r9, rdx
   cmp r9, 0
@@ -146,7 +124,7 @@ _e2_: ; if '[' and ']' match
   xor al, al
   mov al, [buf5+rdx]   ;load byte (position of [) to al
   mov byte [buf6+r15], al ; load al into [buf6+r15]
-  
+
   xor al, al
   xor rcx, rcx
   mov rcx, r8
@@ -163,14 +141,10 @@ _e2_: ; if '[' and ']' match
   sub byte [buf5+rdx], al ; clears byte [buf5+rdx]
   xor rcx, rcx
   xor al, al
- 
   inc r8
- 
-  jmp _e_
- 
 
- 
- 
+  jmp _e_
+
 _e0_:
 
   cmp rdx, 0  ;just double checking 
@@ -184,13 +158,13 @@ _e0_:
   mov r9, 0
   mov r12, 0
   jmp _e1000n
- 
+
 _e1000n:  ; if no. of [ > no. of ]
   mov r15, 0
   cmp byte [buf5+r15], 0
   je _e10n
   jne _e100n
- 
+
 _e10n:
   mov r8, 0
   mov r12, 0
@@ -198,16 +172,10 @@ _e10n:
   mov r15, 0
   mov byte [buf10], 0
   mov qword [buf12], 0
-
   jmp _e1
- 
+
 _e100n:
   jmp _exit6
- 
- 
-;_e200n:
-;  jmp _exit3
- 
 
 _e1:
    mov r9, 0
@@ -215,9 +183,6 @@ _e1:
    mov r15, 0
    mov r9, 0
    mov r10, 0
-   
-  
-
     cmp byte [buf+r8], '+'
     je _e2
 
@@ -238,39 +203,28 @@ _e1:
 
     cmp byte [buf+r8], '.'
     je _e9
-   
-
     inc qword [buf12]
     xor r9, r9
     mov r9, [buf12+0*8]
     mov r9, r9
     mov [buf12+0*8], r9
-    cmp qword [buf12+0*8], 20000
+    cmp qword [buf12+0*8], 20000 ; no. of steps
     jae _exit4
-    
-
     cmp r8, rdi
     je _e9
-
     inc r8  ;move to next character
     jmp _e1
-
-
 _e2:
-  
     cmp byte [rsp+rbp], 255 ;if memory cell == 255, even though x86 asm knows if byte [rsp+rbp] is 255.
     jae _e2e_
-   
     inc byte [rsp+rbp]  ; add byte [rsp+rbp]
     inc r8
     jmp _e1
-    
 _e2e_:
     sub byte [rsp+rbp], 255
     mov byte [rsp+rbp], 0
     inc r8
     jmp _e1
-
 _e3:
     cmp byte [rsp+rbp], 0 ; if memory_cell[rbp] == 0
     je _e3e_
@@ -278,8 +232,6 @@ _e3:
     dec byte [rsp+rbp] ;subtract byte [rsp+rsp] by 1
     inc r8
     jmp _e1
-
-
 _e3e_:
     inc r8
     sub byte [rsp+rbp], 0
@@ -289,8 +241,6 @@ _e3e_:
     mov [rsp+rbp], r9
     mov byte [rsp+rbp], 255
     jmp _e1
-
-
 _e4:
     mov r9, 0 
     inc r8
@@ -300,69 +250,45 @@ _e4:
     cmp rbp, 20000
     je _exit4
     jmp _e1
-
-
 _e5:
     mov r9, 0
     cmp rbp, 0 
     je _e5e
-
     dec rbp ; move pointer to the left if '<'
     inc r8
     jmp _e1
-
-
 _e5e:
     jmp _exit5 ; if underflow (-rbp)
-
-
 _e6:
     xor dl, dl
     cmp byte [rsp+rbp], 0 ; if memory_cell[rbp] == 0
     je _e6e 
     ja _e61e_
-
-
 _e61e_:
     mov r10, 0 
     inc r8   ;move to next character 
     jmp _e1
-
-
 _e6e:
     mov r10, 0
     movzx r10, byte [buf6+r9]
     mov r10, r10
     mov dl, byte [buf+r10]
     jmp _e820e
- 
- 
 
 _e820e:
-  
+
     mov r10, 0
     movzx r10, byte [buf6+r15] ; load byte [buf6+r15] into r10
-
-   
     cmp r10, r8; compare if r10 and r8 is the same
     je _e830e ; jump if equal
     jne _e840e ;jump if not equal
-
 _e830e:
-    
     xor rax, rax
     xor dl, dl
     xor rdi, rdi
-    
-   
     xor al, al
     mov r9, r15
     jmp _e61e
-   
- 
- 
- 
-   
 _e840e:
     inc r15
     cmp r15, 5001
@@ -371,7 +297,6 @@ _e840e:
     xor dl, dl
     xor al, al
     jmp _e820e
-   
 
 _e61e:
     mov r10, 0
@@ -451,7 +376,7 @@ _e9: ; printing memory cell
   cmp byte [buf10+r10], 0
   je _e90
   jne _e900
- 
+
 _e90:
   cmp r8, rdi
   je _exit2
@@ -465,30 +390,27 @@ _e90:
   cmp r8, rdi
   je _exit2
   jmp _e1
-  
+
 _e900:
   inc r10
   jmp _e9
-   
+
 
 _exit2:
   xor rax, rax
   xor rdi, rdi
   xor rdx, rdx
-  mov rsi, buf10 ; output buf10 if interpreter is successful 
+  mov rsi, buf10 ; output buf10 if interpreter scans '.'
   mov rdx, 600
   mov rax, 1
   mov rdi, 1
   syscall
- 
-
- 
- 
+  
   add rsp, 20000
   mov rax, 60
   xor rdi, rdi
   syscall
- 
+
 _exit3:
   xor rax, rax
   mov rsi, buf6
@@ -496,12 +418,12 @@ _exit3:
   mov rax, 1
   mov rdi, 1
   syscall
- 
+
   add rsp, 20000
   mov rax, 60
   xor rdi, rdi
   syscall
- 
+
 _exit4:
   xor rax, rax
   mov rsi, msg
@@ -509,12 +431,12 @@ _exit4:
   mov rax, 1
   mov rdi, 1
   syscall
- 
+
   add rsp, 20000
   mov rax, 60
   xor rdi, rdi
   syscall
- 
+
 _exit5:
   xor rbp, rbp
   xor rax, rax
@@ -524,12 +446,12 @@ _exit5:
   mov rax, 1
   mov rdi, 1
   syscall
- 
+
   add rsp, 20000
   mov rax, 60
   xor rdi, rdi
   syscall
- 
+
 _exit6:
   xor rbp, rbp
   xor rax, rax
@@ -539,7 +461,7 @@ _exit6:
   mov rax, 1
   mov rdi, 1
   syscall
- 
+
   add rsp, 20000
   mov rax, 60
   xor rdi, rdi

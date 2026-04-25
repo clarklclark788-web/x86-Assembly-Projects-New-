@@ -1,5 +1,4 @@
 
-
 section .data
   msg db 'ERROR_x86assembly/Infinite loop detected', 0
   len equ $ - msg
@@ -9,417 +8,460 @@ section .data
 
   msg3 db 'unmatched bracket', 0
   len3 equ $ - msg3
+ 
+  msg4 db "code is not compatible for this interpreter (max: 256 chars)", 0
+  len4 equ $ - msg4
+
+
+;====================================================================
+; STACKS
+;====================================================================
 
 section .bss
-    buf resb 20000
+    buf resb 20000 ;20000 memory cells
     buf2 resb 1000
     buf3 resb 1000
     buf4 resb 1000
-    buf5 resb 5000
-    buf6 resb 5000
-    buf7 resb 5000
+    buf5 resb 5000 ; storing unmatched brackets [
+    buf6 resb 5000 ; storing matched brackets [
+    buf7 resb 5000 ; storing matched brackets ]
     buf8 resb 5000
     buf10 resb 1000
-    buf11 resb 20000
-    buf12 resq 2
-    
+    buf11 resb 20000 ; determine the length of code. Max: 20000 characters
+    buf12 resq 2 ; count no. of steps
+
+;====================================================================
+; HANDLING INPUT
+;====================================================================
+   
 section .text
-global _start
-_start:
+global _start_input
+
+_start_input:
+    xor rdi, rdi
+    add byte [buf+rdi], '_'
+    jmp _start_input1
+
+_start_input1:
     mov rax, 0
     mov rdi, 0
-    mov rsi, buf    ;start input
-    mov rdx, 20000
+    mov rsi, buf ;start input
+    mov rdx, 20000; maximum length of code is 20000 now
     syscall
-_start01:
+   
+    cmp byte [buf+rdi], '_'
+    je _exit6
+    
+_start_input2:
     xor al, al
     mov al, 1
     xor rdi, rdi
-    jmp _start02
-_start02:
-    cmp byte [buf+rdi], 0
-    ja _start03
-    je _start04
-_start03:
+    jmp _determine_length_of_input1
+_determine_length_of_input1:
+    
+    cmp byte [buf+rdi], 0 ; determine length of code starting with buf[rdi], where rdi is initially zero
+    ja _determine_length_of_input2
+    je _determine_length_of_input3
+_determine_length_of_input2:
     mov al, 3
-    inc rdi
-    jmp _start02
+    inc rdi ; count the no. of chars of the code
+    jmp _determine_length_of_input1
 
-_start04:
+_determine_length_of_input3:
     dec al
     mov byte [buf11], 0
     mov rdi, rdi
-    jmp _start05
+    jmp _determine_length_of_input4
 
-_start05:
-    inc byte [buf11]
+_determine_length_of_input4: ; transfer the length of code to [buf11]
+    inc byte [buf11] 
     dec rdi
-    cmp rdi, 0
+    cmp rdi, 0 ; if rdi fully transferred to [buf11], jump to _start1
     je _start1
-    ja _start05
+    ja _determine_length_of_input4
 
 _start1:
 
-    movzx rdi, byte [buf11]
-    cmp rdi, 0
+    movzx rdi, byte [buf11] ; transfer length from byte [buf11] back into rdi
+    cmp rdi, 0 ; to check bugs if rdi is unexpectedly zero
     je _exit5
 
-    add byte [buf11], '0' ; length of code
+  ; add byte [buf11], '0' ; length of code
     sub rsp, 20000; memory cells
     xor rbp, rbp ; pointer for memory cells
     xor r8, r8 ; pointer for code (input)
     xor r9, r9 ; multi-purpose register
     xor r10, r10 ; multi-purpose register
-    xor r11, r11 ; multi-purpose register 
+    xor r11, r11 ; multi-purpose register
     xor r12, r12 ; multi-purpose register
     xor r15, r15 ; ] ;do not use r0, r5, r6, and r16
     xor rdx, rdx ;pointer for '[' buffer
-    xor al, al
+    xor al, al ; reset rax after handling input
     xor dl, dl
     xor rax, rax
     xor rcx, rcx
-    inc rdi  ; inc rdi to prevent inaccurate size of code
+    inc rdi ; inc rdi to prevent determine the inaccurate length of code
 
-_e_:
+;====================================================================
+; PRE-SCANNING BRACKETS
+;====================================================================
+
+scanning_brackets:
    xor rcx, rcx ; resets rcx after scanning for ']' and '['
    xor al, al
-   cmp byte [buf+r8], '[' ; push '[' in buf5, knows the 
+   cmp byte [buf+r8], '[' ; push '[' in buf5, knows the
    ; positon of '['
-   je _e1_
+   je scanning_leftbracket
+ 
    cmp byte [buf+r8], ']' ; pop '[', transfer the byte to buf6 from buf5
-   je _ee2_
+   je handle_matchingbrackets
 
    xor rax, rax
-   mov rax, r8
+   mov rax, r8 ; load 8 bit into 64 bit to preventing overwriting
    cmp rax, 20000 ; if r8 == 20000, exits the scanning
-   je _e0_
-   inc r8
-   jmp _e_
+   je _exitfor_unmatchedbracketsagain
+   inc r8 ;move to next char if neither '[' nor ']' found
+   jmp scanning_brackets
 
-_e1_:
+scanning_leftbracket:
+   cmp r8, 256 ;since it reserves bytes instead of qword, so small bfk codes are supported.
+   ja _exit8
    add [buf5+rdx], r8b ; transfer r8 to buf5 if [buf5+rdx] == '['
-   inc r8     
-   inc rdx  ;pointer for buf5
-   jmp _e_
+   inc r8 ; move to next char to scan for '[' or ']'
+   inc rdx ;pointer for buf5
+   jmp scanning_brackets
 
 
 
-_ee2_:   ; check for unmatched bracket, if no. of [ > no. of ]
+handle_matchingbrackets: ; check for unmatched bracket, if no. of [ < no. of ]
   cmp rdx, 0
-  je _ef2_
-  ja _e2_
+  je _error1
+  ja matchingbrackets
 
-_ef2_:
-  jmp _exit6 ; prints error message 
+_error1:
+  jmp _exit6 ; prints error message
 
-_e2_: ; if '[' and ']' match
+matchingbrackets: ; if '[' and ']' match
 
   dec rdx
+  ; buf5 = 489
+  ;-----------^
+  ;-----------|
+  ;if dec rdx
+  ; buf5 = 489
+  ;----------^
+  ;----------|
   mov r9, rdx
   cmp r9, 0
-  jb _exit6  ; if no. of ] > no. of [
+  jb _exit6 ; if no. of ] > no. of [
   mov rdx, r9
   mov r9, 0
-  mov rdx, rdx
-  xor al, al
-  mov al, [buf5+rdx]   ;load byte (position of [) to al
-  mov byte [buf6+r15], al ; load al into [buf6+r15]
+  mov rdx, rdx ; update rdx
+  xor al, al ; reset and clear al to load position of matched '[' into al
+  mov al, [buf5+rdx] ;load byte (position of [) to al if matched ']' is found
+  mov byte [buf6+r15], al ; load al (position of [) into [buf6+r15]
 
-  xor al, al
-  xor rcx, rcx
+  xor al, al ; clear al after loading into [buf6+r15]
+  xor rcx, rcx ; clear any garbage
   mov rcx, r8
-  add [buf7+r15], cl ; load current r8 into [buf7+r15]
+  cmp rcx, 256 ; same thing for _e1_
+  ja _exit8
+  add [buf7+r15], cl ; (uses 8-bit if rcx) load current r8 (matched ']') into [buf7+r15]
 
-  mov r8b, 0
+ ; mov r8b, 0
   inc r15 ; r15 is the position pointer for buf6 and buf7.
-  ; matched [ and ] brackets share the different same r15s [ matched with ], r15 == 0, another [ matched with ], r15 == 1
-  cmp r15, 5000  
+  ; matched [ and ] brackets share the same r15s [ matched with ], r15 == 0, another [ matched with ], r15 == 1
+  cmp r15, 5000 ;prevent overflow of buf7
   je _exit4
-  mov r8, rcx
-  xor rcx, rcx
+  mov r8, rcx ;update r8
+  xor rcx, rcx ; reset rcx to 0/clear rcx
   mov al, [buf5+rdx]
-  sub byte [buf5+rdx], al ; clears byte [buf5+rdx]
-  xor rcx, rcx
-  xor al, al
-  inc r8
+  cmp rax, 256 ;if the value of position of matched [ > 256
+  ja _exit8
+  sub byte [buf5+rdx], al ; clears buf5[rdx]
+  xor rcx, rcx ; reset rcx again if b occurs
+  xor al, al ; clear al
+  inc r8 ; move to next character to scan for '[' and ']'
 
-  jmp _e_
+  jmp scanning_brackets
 
-_e0_:
+_exitfor_unmatchedbracketsagain:
 
-  cmp rdx, 0  ;just double checking 
+  cmp rdx, 0 ; if no. of ] > no. of [ again
   jb _exit6
-  dec r15      ; prevent segmentation fault
+  dec r15 ; prevent segmentation fault
   xor rdx, rdx
   xor rax, rax
   xor dl, dl
   xor al, al
   dec r8
-  mov r9, 0
-  mov r12, 0
-  jmp _e1000n
+  xor r9, r9
+  xor r12, r12
+  jmp _exitfor_unmatchedbracketsagain2
 
-_e1000n:  ; if no. of [ > no. of ]
-  mov r15, 0
+_exitfor_unmatchedbracketsagain2: ; if no. of [ > no. of ]
+  xor r15, r15 ; clear/reset r15 so r15 = 0
   cmp byte [buf5+r15], 0
-  je _e10n
-  jne _e100n
+  je _beforeinterpreter
+  jne _error2
 
-_e10n:
-  mov r8, 0
-  mov r12, 0
-  mov r9, 0
-  mov r15, 0
+_beforeinterpreter:
+  xor r8, r8 ;resets r8 to use later for buf[r8] (code input)
+  xor r12, r12 ;used to count and determine the no. of steps
+  xor r9, r9
+  ; reuse r9 as an index (sometimes) for buf6 and buf7
+  xor r15, r15
+  ; reuse r15 later as an index for buf6 and buf7
   mov byte [buf10], 0
   mov qword [buf12], 0
-  jmp _e1
+  jmp _maininterpreter
 
-_e100n:
+_error2:
   jmp _exit6
+ 
+;====================================================================
+; MAIN INTERPRETER
+;====================================================================
 
-_e1:
-   mov r9, 0
-   mov r10, 0
-   mov r15, 0
-   mov r9, 0
-   mov r10, 0
+_maininterpreter:
+   xor r9, r9
+   xor r10, r10
+   xor r15, r15
+   xor r9, r9
+   xor r10, r10
+   xor r12, r12 ; reset and use it to load the length of code into r12
+   mov r12, [buf11] ; buf11 is the code length, compare it with current r8
+ 
+   cmp r8, r12
+   jae _exit2 ; jump to _exit2 if the interpreter has reached scanning the last character
+ 
+   xor r12, r12 ; reset r12 after [buf11] and count no. of steps
+   mov r12, qword [buf12+0*8]
+   cmp r12, 40000 ;no. of steps
+   jae _exit7 ; go to exit7 is the code length exceeds 40000
+   xor r12, r12 ; reset r12 for other uses
+   ; note: rbp (pointer for memory cells, rsp, is initially 0 when you first read _e1)
+   
     cmp byte [buf+r8], '+'
-    je _e2
-
+    je inc_cellvalue ; if buf[r8] == '+'
     cmp byte [buf+r8], '-'
-    je _e3
-
+    je dec_cellvalue ; if buf[r8] == '-'
     cmp byte [buf+r8], '>'
-    je _e4
-
+    je inc_pointer ; if buf[r8] == '>'
     cmp byte [buf+r8], '<'
-    je _e5
-
+    je dec_pointer ; if buf[r8] == '<'
     cmp byte [buf+r8], '['
-    je _e6
-
+    je handle_leftbracket2; if buf[r8] == '['
     cmp byte [buf+r8], ']'
-    je _e7
-
+    je handle_rightbracket2 ; if buf[r8] == ']'
     cmp byte [buf+r8], '.'
-    je _e9
-    inc qword [buf12]
-    xor r9, r9
-    mov r9, [buf12+0*8]
-    mov r9, r9
-    mov [buf12+0*8], r9
-    cmp qword [buf12+0*8], 20000 ; no. of steps
-    jae _exit4
-    cmp r8, rdi
-    je _e9
-    inc r8  ;move to next character
-    jmp _e1
-_e2:
-    cmp byte [rsp+rbp], 255 ;if memory cell == 255, even though x86 asm knows if byte [rsp+rbp] is 255.
-    jae _e2e_
-    inc byte [rsp+rbp]  ; add byte [rsp+rbp]
-    inc r8
-    jmp _e1
-_e2e_:
-    sub byte [rsp+rbp], 255
-    mov byte [rsp+rbp], 0
-    inc r8
-    jmp _e1
-_e3:
-    cmp byte [rsp+rbp], 0 ; if memory_cell[rbp] == 0
-    je _e3e_
-
+    je printing_output ; if buf[r8] == '.'
+    xor r12, r12 ; reset r12 again to prevent any bug
+    inc qword [buf12+0*8] ;increment no. of steps
+    xor r12, r12 ; clear r12
+    mov r12, qword [buf12+0*8]
+    cmp r12, 40000 ;compare if no. of steps exceeds 40000
+    jae _exit7
+    xor r12, r12 ; no. of steps
+    inc r8 ;move to next character
+    jmp _maininterpreter
+inc_cellvalue:
+    inc qword [buf12+0*8] ;increment no. of steps
+    inc byte [rsp+rbp] ; add byte [rsp+rbp]
+    inc r8 ; move to next character
+    jmp _maininterpreter
+dec_cellvalue:
+    inc qword [buf12+0*8] ;increment no. of steps
     dec byte [rsp+rbp] ;subtract byte [rsp+rsp] by 1
-    inc r8
-    jmp _e1
-_e3e_:
-    inc r8
-    sub byte [rsp+rbp], 0
-    mov r9, 0
-    movzx r9, byte [rsp+rbp] 
-    mov r9, r9
-    mov [rsp+rbp], r9
-    mov byte [rsp+rbp], 255
-    jmp _e1
-_e4:
-    mov r9, 0 
-    inc r8
+    inc r8 ; move to next character
+    jmp _maininterpreter
+inc_pointer:
+    inc qword [buf12+0*8] ;increment no. of steps
+    xor r9, r9 ; clear r9
+    inc r8 ;move to next character to scan
     cmp rbp, 20000
-    je _exit4
+    jae _exit4
     inc rbp ; move pointer to the right by 1 if '>'
     cmp rbp, 20000
-    je _exit4
-    jmp _e1
-_e5:
-    mov r9, 0
-    cmp rbp, 0 
-    je _e5e
+    jae _exit4
+    jmp _maininterpreter
+dec_pointer:
+    inc qword [buf12+0*8] ;increment no. of steps
+    xor r9, r9 ; clear r9
+    cmp rbp, 0
+    jbe _error3 ;underflow (negative rbp)
     dec rbp ; move pointer to the left if '<'
-    inc r8
-    jmp _e1
-_e5e:
+    inc r8 ; move to next character to scan
+    jmp _maininterpreter
+_error3:
     jmp _exit5 ; if underflow (-rbp)
-_e6:
-    xor dl, dl
+handle_leftbracket2:
+    inc qword [buf12+0*8] ; increment no. of steps
+    xor dl, dl ; reset dl
     cmp byte [rsp+rbp], 0 ; if memory_cell[rbp] == 0
-    je _e6e 
-    ja _e61e_
-_e61e_:
-    mov r10, 0 
-    inc r8   ;move to next character 
-    jmp _e1
-_e6e:
-    mov r10, 0
-    movzx r10, byte [buf6+r9]
-    mov r10, r10
-    mov dl, byte [buf+r10]
-    jmp _e820e
+    je exit_loop1
+    ja enter_loop1
+enter_loop1:
+    xor r10, r10
+    inc r8 ;move to next character
+    jmp _maininterpreter
+exit_loop1:
+    jmp before_exiting1
 
-_e820e:
+before_exiting1:
 
-    mov r10, 0
-    movzx r10, byte [buf6+r15] ; load byte [buf6+r15] into r10
+    xor r10, r10
+    movzx r10, byte [buf6+r15] ; load byte [buf6+r15] into r10, r15 is initially 0
+    ;buf6 = 4 9 12 0 0 0 0...
+    ;r8 = 9
+    ;r15 is initially 0 when you first read _e6, so buf6[0] = 4
+    ; 4 != 9, so inc r15 (in _e840e)
     cmp r10, r8; compare if r10 and r8 is the same
-    je _e830e ; jump if equal
-    jne _e840e ;jump if not equal
-_e830e:
+    je correct_match1 ; jump if equal
+    jne incorrect_match1 ;jump if not equal
+correct_match1:
     xor rax, rax
     xor dl, dl
     xor rdi, rdi
     xor al, al
-    mov r9, r15
-    jmp _e61e
-_e840e:
+    mov r9, r15 ; use r9 (r15 = matched '[' and ']' index) to jump to matched ']'
+    jmp jump_to_exit1
+incorrect_match1:
+; buf6 = 4 9 12 0 0 0 0...
+; r15 is initially 0, so buf6[0] = 4
+; buf6[0] = 4, r8 = 9 but 4 != 9, inc r15 so buf6[1] = 9
+; buf6[1] = 9 -> buf6[2] = 12 if r15 is 1 before inc r15
     inc r15
-    cmp r15, 5001
-    je _exit4
-    xor rax, rax
-    xor dl, dl
-    xor al, al
-    jmp _e820e
+    cmp r15, 5000 ; if buf6 overflows
+    jae _exit4
+    jmp before_exiting1
 
-_e61e:
-    mov r10, 0
-    xor rax, rax
-    xor rdx, rdx
-    xor dl, dl
-    mov r10, 0
-    mov r9, r9
+jump_to_exit1:
+    xor r10, r10 ; clear and reuse r10 for byte [buf7+r9]
+    xor r15, r15
+    mov r9, r9 ; update r9
     xor al, al
-    movzx r10, byte [buf7+r9]
-    mov r10, r10
-    mov r8, r10 ; jump to ]
-    mov r8, r8
+    movzx r10, byte [buf7+r9] ; load position of '[' that is matched with ] into r10
+    mov r10, r10 ; update r10
+    mov r8, r10 ; jump to matched ']'
+    mov r8, r8 ; update r8 after jumping to matched ']'
     xor al, al
     xor dl, dl
     xor rax, rax
     xor rdx, rdx
-    mov r9, 0
-    mov r10, 0
-    jmp _e1
-_e7:
-    cmp byte [rsp+rbp], 0
-    je _e7e
-    jne _e71e
-_e7e:
-    inc r8
-    cmp r8, 20001
+    xor r9, r9 ; reset and resure r9 for later use
+    xor r10, r10 ; reset an reuse r10 for later use
+    jmp _maininterpreter
+handle_rightbracket2:
+    inc qword [buf12+0*8] ; increment no. of steps
+    cmp byte [rsp+rbp], 0 ; compare if memory_cell[rbp] / rsp[rbp] == 0
+    je exit_loop2 ; jmp to _e7e if ==0
+    jne enter_loop2 ; jmp to _e71e if != 0
+   
+exit_loop2: ; exit loop
+    inc r8 ; move to next character
+    cmp r8, 20000 ; prevent overflow
     je _exit4
-    jmp _e1
-_e71e:
-    mov r10, 0
-    mov r12, 0
-    xor rax, rax
-    xor al, al
+    jmp _maininterpreter
+enter_loop2:
+    xor r15, r15 ; reset and use later as an index for byte [buf7+r15]
+    xor r10, r10 ; reset r10 and use for later use
+    xor r12, r12 ; reset and reuse for byte [buf7+r9]
     xor dl, dl
     xor rbx, rbx
-    mov r9, r9
-    mov r8, r8
+    mov r9, r9 ; update r9
+    mov r8, r8 ; update r8
     movzx r12, byte [buf7+r9] ; ; load byte [buf7+r9] into r12
-    mov r12, r12
+    xor r12, r12
     movzx rbx, byte [buf+r12] ;ignore.it
     movzx rax, byte [buf+r8]
-    jmp _e720e
+    jmp before_entering1
 
-_e720e:
-    mov r12, 0
+before_entering1:
+    xor r12, r12 ; clear r12 to load byte [buf7+r15] into r12
     movzx r12, byte [buf7+r15]
     cmp r12, r8 ; if the parsing/matching is correct, go to _e730e
-    je _e730e
-    jne _e740e
-_e730e:
-    mov r12, 0
-    mov r9, r15
-    jmp _e73e
-_e740e:
-    cmp r15, 20000
+    ; e.g., buf7 = 6 10 15 0 0...
+    ; e.g., r8 = 10
+    ; r15 is initially 0 when you first read _e7 so buf7[0] == 6
+    ; 6 != 10 if r8 = 6
+    ;jmp to _e740e
+    ; 10 == 10 if r8 = 10
+    ;jmp to _e730e
+    je correct_match2
+    jne incorrect_match2
+correct_match2:
+    xor r12, r12 ; reset r12 and use it for later use
+    mov r9, r15 ; load r15 into r9, use that r15 to jump to matched '['
+    jmp jump_to_enter1
+incorrect_match2:
+    cmp r15, 5000
     je _exit4
-    inc r15
-    cmp r15, 20000
+    ; r15 is initially 0 when you first read the code block _e7
+    ; buf7[0] = 6
+    ; r8 = 10
+    ; 6 != 10, so go to _e740e
+    ; inc r15
+    ; buf7[1] = 10
+    ; r8 still the same, no inc r8
+    ; jump back to _e720e to compare
+    inc r15 ; r15 is initially zero when you first read this block
+    ; if inc r15
+    ; buf7[0] -> buf7[1] = 10 ir r15 is 0 before inc r15
+    ; once matched, go jump to _e730e
+    cmp r15, 5000
     je _exit4
-    jmp _e720e
-_e73e:
+    jmp before_entering1
+jump_to_enter1:
     xor rax, rax
     xor rbx, rbx
-    mov r15, 0
-    xor al, al
-    mov r12, 0
+    xor r15, r15 ; will use r9 to jump to matched '['
+    xor r12, r12 ; clear r12 for byte [buf6+r9]
     movzx r12, byte [buf6+r9]
-    mov r12, r12
-    mov r8, r12 ; jump to [
-    xor al, al
-    mov r12, 0
-    jmp _e1
+    mov r12, r12 ; update r12
+    mov r8, r12 ; jump to matched [
+    xor al, al ; reset al
+    xor r12, r12 ; reset and reuse r12 for later use
+    jmp _maininterpreter
 
-_e9: ; printing memory cell
-  mov r10, r10
-  cmp byte [buf10+r10], 0
-  je _e90
-  jne _e900
+printing_output: ; printing memory cell
+  mov rax, 1
+  mov rdi, 1
+  lea rsi, [rsp+rbp]
+  mov rdx, 1
+  syscall
+  inc r8 ;move to next character
+  inc qword [buf12+0*8] ;count the no. of steps
+  jmp _maininterpreter
+ 
+;====================================================================
+; EXIT
+;====================================================================
 
-_e90:
-  cmp r8, rdi
-  je _exit2
-  xor al, al
-  add al, [rsp+rbp]
-  mov byte [buf10+r10], al
-  xor al, al
-  inc r8
-  cmp r8, 20001
-  je _exit5
-  cmp r8, rdi
-  je _exit2
-  jmp _e1
-
-_e900:
-  inc r10
-  jmp _e9
-
-
-_exit2:
+_exit2: ;output printed characters from
   xor rax, rax
   xor rdi, rdi
   xor rdx, rdx
   mov rsi, buf10 ; output buf10 if interpreter scans '.'
-  mov rdx, 600
+  mov rdx, 600 ; the maximum output lengtb is 600 for my interpreter
   mov rax, 1
   mov rdi, 1
   syscall
-  
-  add rsp, 20000
+ 
+  add rsp, 20000 ; align the stack rsp
   mov rax, 60
   xor rdi, rdi
   syscall
 
 _exit3:
   xor rax, rax
-  mov rsi, buf6
-  mov rdx, 100;len2
+  mov rsi, buf5
+  mov rdx, 100 ; maximum output: 100
   mov rax, 1
   mov rdi, 1
   syscall
 
-  add rsp, 20000
+  add rsp, 20000 ; align the stack rsp
   mov rax, 60
   xor rdi, rdi
   syscall
@@ -433,7 +475,7 @@ _exit4:
   syscall
 
   add rsp, 20000
-  mov rax, 60
+  mov rax, 60 ;maximum length is 60 for _exit4
   xor rdi, rdi
   syscall
 
@@ -462,6 +504,36 @@ _exit6:
   mov rdi, 1
   syscall
 
+  add rsp, 20000
+  mov rax, 60
+  xor rdi, rdi
+  syscall
+ 
+_exit7:
+  xor rbp, rbp
+  xor rax, rax
+  xor rdx, rdx
+  mov rsi, msg
+  mov rdx, len
+  mov rax, 1
+  mov rdi, 1
+  syscall
+ 
+  add rsp, 20000
+  mov rax, 60
+  xor rdi, rdi
+  syscall
+ 
+_exit8:
+  xor rbp, rbp
+  xor rax, rax
+  xor rdx, rdx
+  mov rsi, msg4
+  mov rdx, len4
+  mov rax, 1
+  mov rdi, 1
+  syscall
+ 
   add rsp, 20000
   mov rax, 60
   xor rdi, rdi
